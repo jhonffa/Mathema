@@ -1,0 +1,1224 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <meta name="description" content="Mathema — Laboratorio Matemático para el estudio visual e interactivo de límites y derivadas.">
+  <title>Mathema — Laboratorio Matemático Inmersivo</title>
+
+  <!-- CDN externos: Plotly para visualización y math.js para cálculo simbólico/numérico. -->
+
+  <style>
+    /* ===============================================================
+       IDENTIDAD VISUAL — cambia las variables aquí para personalizar
+       colores, profundidad, bordes y tipografía del laboratorio.
+       =============================================================== */
+    :root {
+      --bg: #07111f;
+      --bg-2: #0b1728;
+      --panel: rgba(13, 28, 47, 0.86);
+      --panel-strong: rgba(9, 21, 36, 0.96);
+      --line: rgba(255,255,255,.10);
+      --line-strong: rgba(0,194,255,.32);
+      --text: #f6fbff;
+      --muted: #9db2c5;
+      --cyan: #00C2FF;
+      --lime: #B8EF2B;
+      --orange: #FF7A1A;
+      --danger: #ff5d73;
+      --success: #79e45c;
+      --shadow: 0 24px 60px rgba(0,0,0,.34);
+      --radius: 18px;
+      --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; min-height: 100%; }
+    body {
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px),
+        radial-gradient(circle at 15% 0%, rgba(0,194,255,.10), transparent 32rem),
+        radial-gradient(circle at 100% 100%, rgba(184,239,43,.07), transparent 28rem),
+        var(--bg);
+      background-size: 36px 36px, 36px 36px, auto, auto, auto;
+      overflow-x: hidden;
+    }
+
+    body.high-contrast {
+      --panel: #07111f;
+      --panel-strong: #050c16;
+      --line: rgba(255,255,255,.45);
+      --muted: #e2edf7;
+      --text: #ffffff;
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    :focus-visible {
+      outline: 3px solid var(--lime);
+      outline-offset: 3px;
+    }
+    .skip-link {
+      position: fixed;
+      left: 12px;
+      top: 12px;
+      transform: translateY(-150%);
+      z-index: 10000;
+      background: var(--lime);
+      color: #07111f;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 800;
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .app-shell { min-height: 100vh; display: grid; grid-template-columns: 270px 1fr; }
+
+    /* ============================== SIDEBAR ============================== */
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 20px 16px;
+      border-right: 1px solid var(--line);
+      background: rgba(4, 13, 24, .82);
+      backdrop-filter: blur(16px);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 8px 8px 2px; }
+    .brand-mark {
+      width: 42px; height: 42px; border-radius: 13px;
+      display: grid; place-items: center;
+      color: #06101c; background: var(--cyan);
+      font-weight: 1000; letter-spacing: -1px;
+      box-shadow: 0 0 30px rgba(0,194,255,.24);
+    }
+    .brand-copy strong { display: block; font-size: 18px; letter-spacing: .2px; }
+    .brand-copy small { display: block; color: var(--muted); margin-top: 2px; font-size: 11px; }
+
+    .nav { display: grid; gap: 7px; }
+    .nav button {
+      width: 100%;
+      display: flex; align-items: center; gap: 11px;
+      padding: 12px 13px;
+      color: var(--muted);
+      border: 1px solid transparent;
+      border-radius: 13px;
+      background: transparent;
+      text-align: left;
+      transition: .18s ease;
+    }
+    .nav button:hover { color: var(--text); background: rgba(255,255,255,.05); }
+    .nav button.active {
+      color: var(--text);
+      border-color: rgba(0,194,255,.22);
+      background: rgba(0,194,255,.10);
+      box-shadow: inset 3px 0 0 var(--cyan);
+    }
+    .nav-icon {
+      width: 28px; height: 28px; display: grid; place-items: center;
+      border-radius: 8px; background: rgba(255,255,255,.06);
+      color: var(--cyan); flex: 0 0 auto;
+    }
+    .nav button.active .nav-icon { color: var(--lime); background: rgba(184,239,43,.08); }
+
+    .engine-status {
+      margin-top: auto;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255,255,255,.03);
+    }
+    .status-title { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+    .status-row { display:flex; gap:8px; align-items:center; margin-top: 10px; font-size: 12px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 4px rgba(255,93,115,.08); }
+    .dot.ok { background: var(--success); box-shadow: 0 0 0 4px rgba(121,228,92,.08); }
+
+    /* =============================== MAIN =============================== */
+    .main { min-width: 0; padding: 18px 22px 36px; }
+    .topbar {
+      display:flex; gap:12px; justify-content:space-between; align-items:center;
+      margin-bottom: 18px;
+    }
+    .mobile-menu { display:none; }
+    .breadcrumbs { color: var(--muted); font-size: 13px; }
+    .breadcrumbs strong { color: var(--text); }
+    .top-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+    .icon-btn, .soft-btn, .primary-btn, .ghost-btn, .danger-btn {
+      border: 1px solid var(--line);
+      color: var(--text);
+      background: rgba(255,255,255,.045);
+      border-radius: 11px;
+      padding: 9px 12px;
+      min-height: 40px;
+    }
+    .icon-btn { width: 40px; padding: 0; display:grid; place-items:center; }
+    .icon-btn:hover, .soft-btn:hover, .ghost-btn:hover { border-color: rgba(0,194,255,.34); background: rgba(0,194,255,.09); }
+    .primary-btn {
+      background: var(--cyan); color: #04111b; border-color: var(--cyan); font-weight: 850;
+      box-shadow: 0 7px 24px rgba(0,194,255,.16);
+    }
+    .primary-btn:hover { transform: translateY(-1px); }
+    .lime-btn { background: var(--lime); border-color: var(--lime); color: #08120a; }
+    .orange-btn { background: var(--orange); border-color: var(--orange); color: #140b02; }
+    .danger-btn { color: #fff; border-color: rgba(255,93,115,.35); background: rgba(255,93,115,.10); }
+
+    .section { display:none; animation: section-in .25s ease; }
+    .section.active { display:block; }
+    @keyframes section-in { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+
+    .hero {
+      display:grid; grid-template-columns: minmax(0,1.45fr) minmax(290px,.8fr); gap:16px;
+      padding: 26px;
+      border:1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(0,194,255,.10), rgba(255,255,255,.025));
+      box-shadow: var(--shadow);
+      position:relative; overflow:hidden;
+    }
+    .hero::after {
+      content:""; position:absolute; width:250px; height:250px; right:-70px; top:-100px; border-radius:50%;
+      border:1px solid rgba(0,194,255,.18); box-shadow:0 0 100px rgba(0,194,255,.13);
+    }
+    .eyebrow { color: var(--lime); font-size:11px; text-transform:uppercase; letter-spacing:.14em; font-weight:800; }
+    h1 { margin: 8px 0 10px; font-size:clamp(32px,5vw,54px); line-height:.98; letter-spacing:-.03em; }
+    .hero p { color:var(--muted); max-width: 760px; line-height:1.65; margin:0 0 18px; }
+    .hero-actions { display:flex; gap:9px; flex-wrap:wrap; }
+    .hero-metric {
+      align-self:stretch; display:grid; grid-template-columns:1fr 1fr; gap:9px; position:relative; z-index:1;
+    }
+    .metric { padding:14px; border:1px solid var(--line); border-radius:16px; background:rgba(0,0,0,.18); }
+    .metric strong { display:block; font-size:25px; }
+    .metric span { display:block; color:var(--muted); font-size:11px; margin-top:4px; }
+
+    .section-head { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin: 26px 0 12px; }
+    .section-head h2 { margin:0; font-size:21px; letter-spacing:-.02em; }
+    .section-head p { margin:5px 0 0; color:var(--muted); font-size:13px; }
+
+    .card-grid { display:grid; gap:14px; grid-template-columns: repeat(12, minmax(0,1fr)); }
+    .card { grid-column:span 4; padding:17px; border:1px solid var(--line); border-radius:var(--radius); background:var(--panel); box-shadow:var(--shadow); min-width:0; }
+    .card.span-6 { grid-column:span 6; }
+    .card.span-8 { grid-column:span 8; }
+    .card.span-12 { grid-column:span 12; }
+    .card h3 { margin:0 0 8px; font-size:15px; }
+    .card p { color:var(--muted); line-height:1.55; font-size:13px; margin:0; }
+    .module-tag { display:inline-flex; gap:6px; align-items:center; padding:5px 8px; border-radius:999px; background:rgba(0,194,255,.08); color:var(--cyan); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+
+    /* ============================== FORMS ============================== */
+    .form-grid { display:grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap:11px; }
+    .field { grid-column:span 6; min-width:0; }
+    .field.span-4 { grid-column:span 4; }
+    .field.span-8 { grid-column:span 8; }
+    .field.span-12 { grid-column:span 12; }
+    .field label { display:flex; justify-content:space-between; gap:8px; color:var(--muted); font-size:11px; font-weight:700; margin:0 0 6px; }
+    .field input, .field select, .field textarea, .data-input {
+      width:100%; color:var(--text); border:1px solid var(--line); background:rgba(0,0,0,.18);
+      border-radius:11px; padding:11px 12px; outline:none;
+    }
+    .field textarea { min-height: 105px; resize: vertical; line-height:1.45; }
+    .field input::placeholder, .field textarea::placeholder { color:#6f879a; }
+    .field input:focus, .field textarea:focus, .field select:focus, .data-input:focus { border-color:var(--line-strong); box-shadow:0 0 0 3px rgba(0,194,255,.08); }
+    .actions-row { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .hint { margin:8px 0 0; color:var(--muted); font-size:11px; }
+    .result-box { margin-top:12px; padding:13px; border:1px solid var(--line); border-radius:13px; background:rgba(0,0,0,.16); }
+    .result-label { font-size:10px; text-transform:uppercase; letter-spacing:.10em; color:var(--muted); }
+    .result-value { margin-top:4px; font-size:17px; font-weight:850; word-break:break-word; }
+    .result-note { color:var(--muted); margin-top:4px; font-size:12px; line-height:1.45; }
+    .math-expression { font-family:"Cambria Math", "Times New Roman", serif; letter-spacing:.01em; }
+
+    /* ============================== PLOTS =============================== */
+    .plot-shell { min-height: 390px; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#07111f; }
+    .plotly-chart { width:100%; height:410px; }
+    .plotly-chart.small { height:330px; }
+    .plotly-chart.tall { height:520px; }
+    .table-wrap { overflow:auto; border:1px solid var(--line); border-radius:13px; }
+    table { width:100%; border-collapse:collapse; min-width:460px; }
+    th, td { padding:9px 10px; border-bottom:1px solid var(--line); text-align:left; font-size:12px; }
+    th { color:var(--muted); text-transform:uppercase; font-size:9px; letter-spacing:.08em; background:rgba(255,255,255,.03); }
+    td code { color:var(--cyan); }
+    tr:last-child td { border-bottom:0; }
+
+    /* ============================== GRÁFICAS ============================= */
+    .data-layout { display:grid; grid-template-columns: minmax(260px,.8fr) minmax(0,1.5fr); gap:13px; }
+    .data-input { min-height:160px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; line-height:1.5; }
+    .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; }
+    .stat-chip { padding:11px; border:1px solid var(--line); border-radius:11px; background:rgba(255,255,255,.025); }
+    .stat-chip b { display:block; font-size:18px; }
+    .stat-chip span { color:var(--muted); font-size:10px; }
+
+    /* ============================== DOCENTE ============================= */
+    .steps { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:0 0 16px; }
+    .step {
+      padding:11px; border:1px solid var(--line); border-radius:13px; background:rgba(255,255,255,.03);
+      position:relative;
+    }
+    .step::before { content:""; display:block; width:22px; height:3px; background:var(--cyan); border-radius:4px; margin-bottom:8px; }
+    .step:nth-child(2)::before { background:var(--lime); }
+    .step:nth-child(3)::before { background:var(--orange); }
+    .step:nth-child(4)::before { background:#fff; }
+    .step b { font-size:12px; }
+    .step span { display:block; color:var(--muted); font-size:10px; margin-top:3px; line-height:1.35; }
+    .script-box { white-space:pre-wrap; min-height:250px; padding:15px; border:1px dashed rgba(0,194,255,.34); border-radius:13px; background:rgba(0,194,255,.04); color:#eaf8ff; line-height:1.58; }
+    .rubric td:last-child, .rubric th:last-child { text-align:right; }
+    .rubric .points { font-weight:850; color:var(--lime); }
+    .save-state { color:var(--muted); font-size:11px; margin-left:auto; }
+
+    /* ============================== TOAST =============================== */
+    .toast-stack {
+      position:fixed; right:18px; bottom:18px; z-index:10020; display:grid; gap:8px; width:min(380px, calc(100vw - 36px));
+    }
+    .toast {
+      padding:12px 14px; border:1px solid var(--line); border-radius:13px; background:rgba(5,15,27,.94); box-shadow:var(--shadow); font-size:12px;
+      animation:toast-in .2s ease;
+    }
+    .toast strong { display:block; margin-bottom:3px; }
+    .toast span { color:var(--muted); line-height:1.45; }
+    .toast.ok { border-color:rgba(121,228,92,.28); }
+    .toast.warn { border-color:rgba(255,122,26,.32); }
+    @keyframes toast-in { from {opacity:0; transform:translateY(5px)} to {opacity:1; transform:none} }
+
+    .sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    .muted { color:var(--muted); }
+    .small { font-size:11px; }
+    .right { text-align:right; }
+
+    @media (max-width: 1080px) {
+      .app-shell { grid-template-columns: 230px 1fr; }
+      .card { grid-column:span 6; }
+      .hero { grid-template-columns:1fr; }
+      .data-layout { grid-template-columns:1fr; }
+    }
+    @media (max-width: 780px) {
+      .app-shell { grid-template-columns: 1fr; }
+      .sidebar {
+        position:fixed; left:0; top:0; width:min(315px, 86vw); transform:translateX(-105%); transition:.2s ease;
+        box-shadow:0 30px 90px rgba(0,0,0,.55);
+      }
+      .sidebar.open { transform:translateX(0); }
+      .mobile-menu { display:grid; }
+      .main { padding:13px 12px 28px; }
+      .topbar { align-items:flex-start; }
+      .breadcrumbs { padding-top:7px; }
+      .top-actions { max-width:55%; }
+      .card, .card.span-6, .card.span-8, .card.span-12 { grid-column:span 12; }
+      .field, .field.span-4, .field.span-8, .field.span-12 { grid-column:span 12; }
+      .stat-grid { grid-template-columns:1fr 1fr; }
+      .steps { grid-template-columns:1fr 1fr; }
+      .compat { grid-template-columns:1fr; }
+      .plotly-chart { height:350px; }
+    }
+    @media (max-width: 490px) {
+      h1 { font-size:35px; }
+      .hero { padding:18px; }
+      .hero-metric { grid-template-columns:1fr 1fr; }
+      .top-actions .soft-btn { display:none; }
+      .steps { grid-template-columns:1fr; }
+      .plotly-chart { height:310px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; scroll-behavior:auto !important; }
+    }
+  </style>
+</head>
+
+<body>
+  <a class="skip-link" href="#main-content">Saltar al contenido principal</a>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Navegación principal">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">M</div>
+        <div class="brand-copy">
+          <strong>Mathema</strong>
+          <small>Laboratorio Matemático Inmersivo</small>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Módulos">
+        <button type="button" class="active" data-section="home" aria-current="page">
+          <span class="nav-icon" aria-hidden="true">⌂</span><span>Inicio</span>
+        </button>
+        <button type="button" data-section="limits">
+          <span class="nav-icon" aria-hidden="true">lim</span><span>Límites</span>
+        </button>
+        <button type="button" data-section="derivatives">
+          <span class="nav-icon" aria-hidden="true">d/dx</span><span>Derivadas</span>
+        </button>
+        <button type="button" data-section="teacher">
+          <span class="nav-icon" aria-hidden="true">✦</span><span>Modo docente</span>
+        </button>
+      </nav>
+
+      <div class="engine-status" aria-label="Estado de motores">
+        <div class="status-title">Estado del laboratorio</div>
+        <div class="status-row"><span id="mathDot" class="dot"></span><span id="mathState">Motor matemático…</span></div>
+        <div class="status-row"><span id="plotlyDot" class="dot"></span><span id="plotlyState">Visualización…</span></div>
+      </div>
+    </aside>
+
+    <main class="main" id="main-content" tabindex="-1">
+      <div class="topbar">
+        <div class="top-actions">
+          <button type="button" class="icon-btn mobile-menu" id="openSidebar" aria-label="Abrir menú" aria-controls="sidebar">☰</button>
+          <div class="breadcrumbs" aria-live="polite">Mathema / <strong id="breadcrumbCurrent">Inicio</strong></div>
+        </div>
+        <div class="top-actions">
+          <button type="button" class="soft-btn" id="contrastToggle" aria-pressed="false">◐ Alto contraste</button>
+          <button type="button" class="soft-btn" id="speechCurrent">🔊 Narrar</button>
+        </div>
+      </div>
+
+      <!-- ================================ INICIO ================================ -->
+      <section id="section-home" class="section active" aria-labelledby="homeTitle">
+        <div class="hero">
+          <div>
+            <div class="eyebrow">Matemática · visualización interactiva</div>
+            <h1 id="homeTitle">Explora ideas matemáticas, no solo respuestas.</h1>
+            <p>Experimenta con límites y derivadas mediante gráficas interactivas. Escribe una función y observa su comportamiento directamente en el plano cartesiano.</p>
+            <div class="hero-actions">
+              <button type="button" class="primary-btn" data-section-jump="limits">Abrir límites</button>
+              <button type="button" class="soft-btn" data-section-jump="derivatives">Explorar derivadas</button>
+            </div>
+          </div>
+          <div class="hero-metric" aria-label="Capacidades de Mathema">
+            <div class="metric"><strong>2D</strong><span>Curvas · aproximaciones · tangentes</span></div>
+            <div class="metric"><strong>∞</strong><span>Límites finitos y al infinito</span></div>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <div><h2>Laboratorios rápidos</h2><p>Actividades funcionales para experimentar sin salir del navegador.</p></div>
+        </div>
+        <div class="card-grid">
+          <article class="card">
+            <span class="module-tag">Límites</span>
+            <h3>Acerca el punto de vista</h3>
+            <p>Calcula aproximaciones laterales, compara valores cercanos y observa cuándo aparece una discontinuidad.</p>
+            <div class="actions-row"><button class="primary-btn" type="button" data-section-jump="limits">Abrir laboratorio</button></div>
+          </article>
+          <article class="card">
+            <span class="module-tag">Derivadas</span>
+            <h3>Observa la pendiente</h3>
+            <p>Obtén la derivada simbólica con math.js y construye una recta tangente que se mueve sobre la curva.</p>
+            <div class="actions-row"><button class="primary-btn lime-btn" type="button" data-section-jump="derivatives">Abrir laboratorio</button></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ================================ LIMITES ================================ -->
+      <section id="section-limits" class="section" aria-labelledby="limitsTitle">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Laboratorio 01</div>
+            <h2 id="limitsTitle">Límites: acercarse sin confundir cercanía con igualdad</h2>
+            <p>Escribe una función, elige hacia dónde tiende x y observa automáticamente la curva, las aproximaciones y el punto de interés.</p>
+          </div>
+        </div>
+
+        <div class="card-grid">
+          <article class="card span-4">
+            <h3>Configuración</h3>
+            <div class="form-grid">
+              <div class="field span-12">
+                <label for="limitExpr">f(x) <span>Ej.: sin(x)/x</span></label>
+                <input id="limitExpr" value="sin(x)/x" autocomplete="off" spellcheck="false">
+              </div>
+              <div class="field span-4">
+                <label for="limitMode">Tipo</label>
+                <select id="limitMode">
+                  <option value="finite">x → a</option>
+                  <option value="plusInf">x → +∞</option>
+                  <option value="minusInf">x → −∞</option>
+                </select>
+              </div>
+              <div class="field span-4" id="limitPointField">
+                <label for="limitPoint">a</label>
+                <input id="limitPoint" type="number" value="0" step="any">
+              </div>
+              <div class="field span-4">
+                <label for="limitWindow">Ventana</label>
+                <input id="limitWindow" type="number" value="4" min="0.1" step="0.1">
+              </div>
+            </div>
+            <div class="actions-row">
+              <button type="button" class="primary-btn" id="computeLimit">Calcular límite</button>
+              <button type="button" class="soft-btn" id="limitExample">Ejemplo x²−1 / x−1</button>
+            </div>
+            <div class="result-box" aria-live="polite">
+              <div class="result-label">Resultado numérico</div>
+              <div id="limitResult" class="result-value math-expression">Listo para experimentar</div>
+              <div id="limitNote" class="result-note">Se muestrean aproximaciones desde ambos lados alrededor del punto.</div>
+            </div>
+          </article>
+
+          <article class="card span-8">
+            <div id="limitPlot" class="plotly-chart" aria-label="Gráfica del límite"></div>
+          </article>
+
+          <article class="card span-6">
+            <h3>Tabla de acercamiento</h3>
+            <div id="limitTable" class="table-wrap" aria-live="polite"></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============================== DERIVADAS ============================== -->
+      <section id="section-derivatives" class="section" aria-labelledby="derivativeTitle">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Laboratorio 02</div>
+            <h2 id="derivativeTitle">Derivadas: haz visible la razón de cambio</h2>
+            <p>Escribe una función y observa automáticamente su curva, su derivada y la recta tangente en el punto elegido.</p>
+          </div>
+        </div>
+
+        <div class="card-grid">
+          <article class="card span-4">
+            <h3>Función y punto</h3>
+            <div class="form-grid">
+              <div class="field span-12">
+                <label for="derivativeExpr">f(x) <span>Ej.: x^3 - 2*x + 1</span></label>
+                <input id="derivativeExpr" value="x^3 - 2*x + 1" autocomplete="off" spellcheck="false">
+              </div>
+              <div class="field span-4">
+                <label for="derivativePoint">x₀</label>
+                <input id="derivativePoint" type="number" value="1" step="any">
+              </div>
+              <div class="field span-4">
+                <label for="derivativeWindow">Ventana</label>
+                <input id="derivativeWindow" type="number" value="4" min="0.5" step="0.5">
+              </div>
+              <div class="field span-4">
+                <label for="slopeMode">Pendiente</label>
+                <select id="slopeMode"><option value="tangent">Tangente</option><option value="secant">Secante</option></select>
+              </div>
+            </div>
+            <div class="actions-row">
+              <button type="button" class="primary-btn lime-btn" id="computeDerivative">Derivar</button>
+              <button type="button" class="soft-btn" id="derivativeExample">Ejemplo trigonométrico</button>
+            </div>
+            <div class="result-box" aria-live="polite">
+              <div class="result-label">Derivada simbólica</div>
+              <div id="derivativeResult" class="result-value math-expression">Listo para experimentar</div>
+              <div id="derivativeNote" class="result-note">La derivación se realiza con math.js.</div>
+            </div>
+          </article>
+
+          <article class="card span-8">
+            <div id="derivativePlot" class="plotly-chart" aria-label="Gráfica de función y derivada"></div>
+          </article>
+
+          <article class="card span-6">
+            <h3>Exploración de pendientes</h3>
+            <p>Modifica x₀ y vuelve a calcular para observar cómo cambia la pendiente.</p>
+            <div class="result-box">
+              <div class="result-label">Lectura en x₀</div>
+              <div id="slopeReading" class="result-value">—</div>
+              <div id="tangentEquation" class="result-note">—</div>
+            </div>
+            <div class="actions-row"><button type="button" class="soft-btn" id="speakDerivative">🔊 Explicar oralmente</button></div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============================== DOCENTE ============================== -->
+      <section id="section-teacher" class="section" aria-labelledby="teacherModuleTitle">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Modo docente</div>
+            <h2 id="teacherModuleTitle">Constructor de secuencias didácticas</h2>
+            <p>Diseña una experiencia y genera automáticamente un guion y una rúbrica de 100 puntos.</p>
+          </div>
+          <span id="teacherSaveState" class="save-state">Sin cambios guardados</span>
+        </div>
+
+        <div class="steps" aria-label="Ruta didáctica">
+          <div class="step"><b>1. Observar</b><span>Identificar patrones, gráficas o datos.</span></div>
+          <div class="step"><b>2. Calcular</b><span>Aplicar procedimientos y contrastar valores.</span></div>
+          <div class="step"><b>3. Explicar</b><span>Argumentar con lenguaje matemático.</span></div>
+          <div class="step"><b>4. Transferir</b><span>Usar lo aprendido en una situación nueva.</span></div>
+        </div>
+
+        <div class="card-grid">
+          <article class="card span-6">
+            <h3>Datos de la secuencia</h3>
+            <div class="form-grid">
+              <div class="field span-12"><label for="teacherTitle">Título</label><input id="teacherTitle" value="Exploración de la derivada mediante aproximaciones"></div>
+              <div class="field span-4"><label for="teacherLevel">Nivel educativo</label><input id="teacherLevel" value="Licenciatura en Matemáticas"></div>
+              <div class="field span-4"><label for="teacherDuration">Duración</label><input id="teacherDuration" value="90 minutos"></div>
+              <div class="field span-4"><label for="teacherDelivery">Evidencia oral/escrita</label><select id="teacherDelivery"><option value="Mixta">Mixta</option><option value="Escrita">Escrita</option><option value="Oral">Oral</option></select></div>
+              <div class="field span-12"><label for="teacherObjective">Objetivo didáctico</label><textarea id="teacherObjective">Interpretar la derivada como razón de cambio local y justificar la pendiente de una recta tangente mediante representaciones numéricas, gráficas y simbólicas.</textarea></div>
+              <div class="field span-12"><label for="teacherQuestion">Pregunta retadora</label><textarea id="teacherQuestion">¿Cómo podrías convencer a otra persona de que una pendiente representa el cambio instantáneo de una función?</textarea></div>
+              <div class="field span-12"><label for="teacherEvidence">Evidencia de aprendizaje</label><textarea id="teacherEvidence">Una explicación argumentada que conecte tabla, gráfica, procedimiento algebraico y una interpretación contextual del resultado.</textarea></div>
+            </div>
+            <div class="actions-row">
+              <button type="button" class="primary-btn" id="generateTeacher">Generar secuencia</button>
+              <button type="button" class="soft-btn" id="saveTeacher">Guardar</button>
+              <button type="button" class="soft-btn" id="copyTeacher">Copiar guion</button>
+              <button type="button" class="soft-btn" id="exportTeacher">Exportar JSON</button>
+              <button type="button" class="soft-btn" id="importTeacher">Importar JSON</button>
+              <button type="button" class="danger-btn" id="resetTeacher">Reiniciar</button>
+            </div>
+            <input id="teacherFile" type="file" accept="application/json,.json" class="sr-only">
+          </article>
+
+          <article class="card span-6">
+            <h3>Guion generado</h3>
+            <div id="teacherScript" class="script-box" aria-live="polite"></div>
+            <div class="actions-row"><button type="button" class="soft-btn" id="speakTeacher">🔊 Narrar guion</button></div>
+          </article>
+
+          <article class="card span-12">
+            <h3>Rúbrica — 100 puntos</h3>
+            <div class="table-wrap rubric">
+              <table>
+                <thead><tr><th>Criterio</th><th>Puntos</th><th>Desempeño esperado</th></tr></thead>
+                <tbody>
+                  <tr><td>Exactitud matemática</td><td class="points">35</td><td>Procedimientos, representaciones y resultados coherentes con los conceptos matemáticos trabajados.</td></tr>
+                  <tr><td>Argumentación</td><td class="points">30</td><td>Explica relaciones, justifica decisiones y conecta lenguaje informal con lenguaje matemático.</td></tr>
+                  <tr><td>Diseño de visualización</td><td class="points">20</td><td>La gráfica interactiva aporta evidencia al razonamiento y permite relacionar representación, procedimiento y significado.</td></tr>
+                  <tr><td>Inclusión</td><td class="points">15</td><td>Ofrece alternativas 2D, texto y/o explicación oral y considera diferentes formas de interacción.</td></tr>
+                  <tr><th>Total</th><th class="points">100</th><th>—</th></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+<div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+    // Carga resiliente de CDN: si un CDN falla, se intenta una segunda fuente.
+    // Esto es especialmente útil cuando GitHub Pages o una red institucional bloquea un proveedor concreto.
+    function loadExternalScript(src, timeoutMs = 6000) {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        let settled = false;
+        const finish = (fn, value) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          fn(value);
+        };
+        const timer = window.setTimeout(() => {
+          script.remove();
+          finish(reject, new Error(`Tiempo agotado al cargar ${src}`));
+        }, timeoutMs);
+        script.src = src;
+        script.onload = () => finish(resolve);
+        script.onerror = () => finish(reject, new Error(`No se pudo cargar ${src}`));
+        document.head.appendChild(script);
+      });
+    }
+
+    async function ensureLibraries() {
+      if (!window.Plotly) {
+        try {
+          await loadExternalScript('https://cdn.plot.ly/plotly-4.1.1.min.js');
+        } catch (_) {
+          try { await loadExternalScript('https://cdn.jsdelivr.net/npm/plotly.js@4.1.1/dist/plotly.min.js'); } catch (_) {}
+        }
+      }
+      if (!window.math) {
+        try {
+          await loadExternalScript('https://cdn.jsdelivr.net/npm/mathjs@15.2.0/lib/browser/math.min.js');
+        } catch (_) {
+          try { await loadExternalScript('https://unpkg.com/mathjs@15.2.0/lib/browser/math.js'); } catch (_) {}
+        }
+      }
+    }
+  </script>
+
+  <script>
+    /* =====================================================================
+       MATHEMA — JAVASCRIPT PRINCIPAL
+       ---------------------------------------------------------------------
+       Notas para estudiantes:
+       - Las expresiones pasan por math.js (compile/evaluate); no se ejecuta JavaScript dinámico generado por el usuario.
+       - Las gráficas de límites y derivadas usan Plotly.
+       - Las expresiones de entrada se procesan con math.js, sin eval().
+       - El proyecto docente se serializa como JSON en localStorage.
+       ===================================================================== */
+
+    'use strict';
+
+    const APP = Object.freeze({
+      storageKey: 'mathemaTeacherProjectV1',
+      defaultTeacher: {
+        title: 'Exploración de la derivada mediante aproximaciones',
+        level: 'Licenciatura en Matemáticas',
+        duration: '90 minutos',
+        delivery: 'Mixta',
+        objective: 'Interpretar la derivada como razón de cambio local y justificar la pendiente de una recta tangente mediante representaciones numéricas, gráficas y simbólicas.',
+        question: '¿Cómo podrías convencer a otra persona de que una pendiente representa el cambio instantáneo de una función?',
+        evidence: 'Una explicación argumentada que conecte tabla, gráfica, procedimiento algebraico y una interpretación contextual del resultado.'
+      }
+    });
+
+    const $ = (id) => document.getElementById(id);
+    const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+
+    const state = {
+      section: 'home',
+      speech: null,
+      lastLimit: null,
+      lastDerivative: null,
+      reducedMotion: window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    };
+
+    function showToast(title, message, kind = '') {
+      const stack = $('toastStack');
+      const node = document.createElement('div');
+      node.className = `toast ${kind}`;
+      node.innerHTML = `<strong></strong><span></span>`;
+      node.querySelector('strong').textContent = title;
+      node.querySelector('span').textContent = message;
+      stack.appendChild(node);
+      window.setTimeout(() => node.remove(), 4200);
+    }
+
+    function setEngineStatus(dotId, textId, ok, message) {
+      $(dotId).classList.toggle('ok', Boolean(ok));
+      $(textId).textContent = message;
+    }
+
+    function renderMathError(targetId, error) {
+      $(targetId).textContent = `Error: ${error && error.message ? error.message : String(error)}`;
+    }
+
+    function finiteNumber(value, fallback = 0) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    }
+
+    function fmt(value, digits = 5) {
+      if (!Number.isFinite(value)) return 'no definido';
+      const rounded = Number(value.toFixed(digits));
+      return String(rounded);
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, (ch) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' }[ch]));
+    }
+
+    function speak(text) {
+      if (!('speechSynthesis' in window)) {
+        showToast('Narración no disponible', 'Este navegador no expone SpeechSynthesis.', 'warn');
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'es-CO';
+      utterance.rate = state.reducedMotion ? 0.92 : 1.0;
+      utterance.pitch = 1;
+      state.speech = utterance;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function navigate(section) {
+      const valid = ['home', 'limits', 'derivatives', 'teacher'];
+      const target = valid.includes(section) ? section : 'home';
+      state.section = target;
+      $$('.section').forEach((el) => el.classList.toggle('active', el.id === `section-${target}`));
+      $$('.nav button').forEach((btn) => {
+        const active = btn.dataset.section === target;
+        btn.classList.toggle('active', active);
+        if (active) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
+      });
+      $('breadcrumbCurrent').textContent = ({home:'Inicio', limits:'Límites', derivatives:'Derivadas', teacher:'Modo docente'})[target];
+      $('sidebar').classList.remove('open');
+      if (target === 'limits') requestAnimationFrame(() => {
+        try {
+          const result = state.lastLimit || buildLimitResult();
+          state.lastLimit = result;
+          drawLimitPlot(result);
+        } catch (_) {}
+      });
+      if (target === 'derivatives') requestAnimationFrame(() => {
+        try {
+          const result = state.lastDerivative || buildDerivativeResult();
+          state.lastDerivative = result;
+          drawDerivativePlot(result);
+        } catch (_) {}
+      });
+      window.scrollTo({ top: 0, behavior: state.reducedMotion ? 'auto' : 'smooth' });
+    }
+
+    /* ============================= PLOTLY TEMA ============================= */
+    const plotTheme = {
+      paper_bgcolor: '#07111f', plot_bgcolor: '#07111f',
+      font: { color: '#f6fbff', family: 'Inter, system-ui, sans-serif' },
+      margin: { l: 52, r: 20, t: 40, b: 44 },
+      xaxis: { gridcolor: 'rgba(255,255,255,.08)', zerolinecolor: 'rgba(0,194,255,.32)' },
+      yaxis: { gridcolor: 'rgba(255,255,255,.08)', zerolinecolor: 'rgba(0,194,255,.32)' }
+    };
+
+    function safePlot(id, data, layout = {}, config = {}) {
+      if (!window.Plotly) return;
+      const mergedLayout = {
+        ...plotTheme,
+        ...layout,
+        xaxis: { ...plotTheme.xaxis, ...(layout.xaxis || {}) },
+        yaxis: { ...plotTheme.yaxis, ...(layout.yaxis || {}) }
+      };
+      Plotly.react($(id), data, mergedLayout, Object.assign({ responsive: true, displaylogo: false }, config));
+    }
+
+    /* ============================ LIMITES ================================= */
+    function getLimitConfig() {
+      return {
+        expr: $('limitExpr').value.trim(),
+        mode: $('limitMode').value,
+        point: finiteNumber($('limitPoint').value, 0),
+        window: Math.max(.1, finiteNumber($('limitWindow').value, 4))
+      };
+    }
+
+    function compileExpression(expression) {
+      if (!expression) throw new Error('La expresión está vacía.');
+      // math.js analiza y compila; no se ejecuta JavaScript dinámico del usuario.
+      return math.compile(expression);
+    }
+
+    function evaluateCompiled(compiled, scope) {
+      const result = compiled.evaluate(scope);
+      if (typeof result === 'number' && Number.isFinite(result)) return result;
+      const numeric = Number(result);
+      return Number.isFinite(numeric) ? numeric : NaN;
+    }
+
+    function buildLimitResult() {
+      const cfg = getLimitConfig();
+      const compiled = compileExpression(cfg.expr);
+      const rows = [];
+      const xs = [];
+      const ys = [];
+
+      if (cfg.mode === 'finite') {
+        // Escala adaptable: empieza lejos y se acerca al punto.
+        const distances = [1, .5, .2, .1, .05, .02, .01, .005, .001];
+        distances.forEach((d) => {
+          [-1, 1].forEach((side) => {
+            const x = cfg.point + side * Math.min(cfg.window, Math.max(d, Number.EPSILON));
+            const y = evaluateCompiled(compiled, {x});
+            rows.push({ side: side < 0 ? 'izq.' : 'der.', x, y });
+          });
+        });
+        const plotN = 500;
+        const start = cfg.point - cfg.window;
+        const step = (cfg.window * 2) / (plotN - 1);
+        for (let i=0; i<plotN; i++) {
+          const x = start + i*step;
+          if (Math.abs(x - cfg.point) < step * .35) continue;
+          let y = NaN;
+          try { y = evaluateCompiled(compiled, {x}); } catch (_) { y = NaN; }
+          xs.push(x); ys.push(y);
+        }
+      } else {
+        const sign = cfg.mode === 'plusInf' ? 1 : -1;
+        const magnitudes = [5, 10, 20, 50, 100, 200, 500, 1000];
+        magnitudes.forEach((m) => {
+          const x = sign * m;
+          const y = evaluateCompiled(compiled, {x});
+          rows.push({ side:'', x, y });
+        });
+        const start = sign > 0 ? 1 : -1000;
+        const end = sign > 0 ? 1000 : -1;
+        const plotN = 500;
+        const step = (end - start) / (plotN - 1);
+        for (let i=0; i<plotN; i++) {
+          const x = start + i*step;
+          let y = NaN;
+          try { y = evaluateCompiled(compiled, {x}); } catch (_) { y = NaN; }
+          xs.push(x); ys.push(y);
+        }
+      }
+
+      const finiteRows = rows.filter(r => Number.isFinite(r.y));
+      let estimate = NaN;
+      let interpretation = 'No hubo suficientes valores finitos para estimar el límite.';
+      if (finiteRows.length) {
+        if (cfg.mode === 'finite') {
+          const left = finiteRows.filter(r => r.side === 'izq.').at(-3)?.y;
+          const right = finiteRows.filter(r => r.side === 'der.').at(-3)?.y;
+          const all = finiteRows.slice(-6).map(r=>r.y);
+          estimate = all.length ? math.mean(all) : NaN;
+          interpretation = Number.isFinite(left) && Number.isFinite(right)
+            ? `Aproximación izquierda ≈ ${fmt(left)} · derecha ≈ ${fmt(right)}. La estimación central se obtiene promediando valores cercanos.`
+            : 'La función presenta valores no finitos o divergentes cerca del punto.';
+        } else {
+          estimate = finiteRows.at(-1).y;
+          interpretation = `En |x| grande, el valor observado se acerca a ${fmt(estimate)} con el muestreo utilizado.`;
+        }
+      }
+      return { ...cfg, rows, estimate, interpretation, xs, ys };
+    }
+
+    function renderLimitTable(result) {
+      const rows = result.rows.map((r) => `<tr><td>${escapeHtml(r.side || (r.x>0?'+∞':'−∞'))}</td><td><code>${fmt(r.x, 7)}</code></td><td>${fmt(r.y, 7)}</td></tr>`).join('');
+      $('limitTable').innerHTML = `<table><thead><tr><th>Dirección</th><th>x</th><th>f(x)</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    function drawLimitPlot(result) {
+      if (!result) return;
+      const traces = [{ x:result.xs, y:result.ys, type:'scatter', mode:'lines', name:'f(x)', line:{color:'#00C2FF', width:3}, connectgaps:false }];
+      const shapes = [];
+      if (result.mode === 'finite') {
+        shapes.push({type:'line', x0:result.point, x1:result.point, y0:0, y1:1, yref:'paper', line:{color:'#FF7A1A', dash:'dot', width:2}});
+        if (Number.isFinite(result.estimate)) traces.push({ x:[result.point], y:[result.estimate], type:'scatter', mode:'markers', name:'≈ límite', marker:{color:'#B8EF2B', size:11} });
+      }
+      safePlot('limitPlot', traces, {
+        title:{text:`Gráfica del límite · f(x) = ${result.expr}`, font:{size:13}},
+        xaxis:{title:'x'}, yaxis:{title:'f(x)'},
+        hovermode:'x unified', shapes, showlegend:true,
+        legend:{orientation:'h', y:-0.18}
+      });
+    }
+
+    function runLimit() {
+      try {
+        const result = buildLimitResult();
+        state.lastLimit = result;
+        renderLimitTable(result);
+        drawLimitPlot(result);
+        $('limitResult').textContent = Number.isFinite(result.estimate) ? fmt(result.estimate, 7) : 'No definido / divergente';
+        $('limitNote').textContent = result.interpretation;
+        showToast('Límite calculado', 'La tabla y la gráfica se actualizaron.', 'ok');
+      } catch (error) {
+        renderMathError('limitResult', error);
+        $('limitNote').textContent = 'Revisa la sintaxis de la expresión. Ejemplos: sin(x), exp(x), (x^2-1)/(x-1).';
+        showToast('Expresión no válida', error.message || String(error), 'warn');
+      }
+    }
+
+    function queueLimitPreview() {
+      window.clearTimeout(state.limitPreviewTimer);
+      state.limitPreviewTimer = window.setTimeout(() => {
+        try {
+          const result = buildLimitResult();
+          state.lastLimit = result;
+          renderLimitTable(result);
+          drawLimitPlot(result);
+        } catch (_) {
+          // Mientras el usuario escribe una expresión incompleta, no interrumpimos la edición.
+        }
+      }, 280);
+    }
+
+    /* =========================== DERIVADAS ================================ */
+    function getDerivativeConfig() {
+      return {
+        expr: $('derivativeExpr').value.trim(),
+        point: finiteNumber($('derivativePoint').value, 0),
+        window: Math.max(.5, finiteNumber($('derivativeWindow').value, 4)),
+        slopeMode: $('slopeMode').value
+      };
+    }
+
+    function buildDerivativeResult() {
+      const cfg = getDerivativeConfig();
+      const node = math.parse(cfg.expr);
+      const derivativeNode = math.derivative(node, 'x');
+      const derivativeText = derivativeNode.toString();
+      const fn = node.compile();
+      const dfn = derivativeNode.compile();
+      const x0 = cfg.point;
+      const y0 = evaluateCompiled(fn, {x:x0});
+      const slope = evaluateCompiled(dfn, {x:x0});
+      const n = 500;
+      const start = x0 - cfg.window;
+      const end = x0 + cfg.window;
+      const step = (end-start)/(n-1);
+      const xs=[], ys=[], dys=[];
+      for(let i=0;i<n;i++){
+        const x=start+i*step;
+        let y=NaN, dy=NaN;
+        try { y=evaluateCompiled(fn,{x}); } catch(_) { }
+        try { dy=evaluateCompiled(dfn,{x}); } catch(_) { }
+        xs.push(x); ys.push(y); dys.push(dy);
+      }
+      const tangentX = [x0-cfg.window*.45, x0+cfg.window*.45];
+      const tangentY = tangentX.map(x => y0 + slope*(x-x0));
+      return { ...cfg, derivativeText, x0, y0, slope, xs, ys, dys, tangentX, tangentY };
+    }
+
+    function drawDerivativePlot(result) {
+      if (!result) return;
+      safePlot('derivativePlot', [
+        {x:result.xs, y:result.ys, type:'scatter', mode:'lines', name:'f(x)', line:{color:'#00C2FF', width:3}, connectgaps:false},
+        {x:result.xs, y:result.dys, type:'scatter', mode:'lines', name:"f'(x)", line:{color:'#B8EF2B', width:2, dash:'dash'}, connectgaps:false},
+        {x:result.tangentX, y:result.tangentY, type:'scatter', mode:'lines', name:'Tangente', line:{color:'#FF7A1A', width:2}},
+        {x:[result.x0], y:[result.y0], type:'scatter', mode:'markers', name:'Punto x₀', marker:{color:'#ffffff', size:10, line:{color:'#00C2FF', width:2}}}
+      ], {
+        title:{text:`Gráfica · f(x) = ${result.expr}`, font:{size:13}},
+        xaxis:{title:'x'}, yaxis:{title:'y'},
+        hovermode:'x unified', showlegend:true,
+        legend:{orientation:'h', y:-0.18}
+      });
+    }
+
+    function runDerivative() {
+      try {
+        const result = buildDerivativeResult();
+        state.lastDerivative = result;
+        drawDerivativePlot(result);
+        $('derivativeResult').textContent = result.derivativeText;
+        $('slopeReading').textContent = `f(${fmt(result.x0)}) = ${fmt(result.y0)} · f'(${fmt(result.x0)}) = ${fmt(result.slope)}`;
+        $('tangentEquation').textContent = `Recta tangente: y = ${fmt(result.y0)} + (${fmt(result.slope)})·(x − ${fmt(result.x0)})`;
+        $('derivativeNote').textContent = `En x₀ = ${fmt(result.x0)}, la pendiente local es ${fmt(result.slope)}.`;
+        showToast('Derivada calculada', 'La curva, la derivada y la tangente se actualizaron.', 'ok');
+      } catch (error) {
+        renderMathError('derivativeResult', error);
+        $('slopeReading').textContent = '—';
+        $('tangentEquation').textContent = 'No se pudo construir la tangente.';
+        showToast('No se pudo derivar', error.message || String(error), 'warn');
+      }
+    }
+
+    function queueDerivativePreview() {
+      window.clearTimeout(state.derivativePreviewTimer);
+      state.derivativePreviewTimer = window.setTimeout(() => {
+        try {
+          const result = buildDerivativeResult();
+          state.lastDerivative = result;
+          drawDerivativePlot(result);
+          $('derivativeResult').textContent = result.derivativeText;
+        } catch (_) {
+          // Mientras la expresión está incompleta, dejamos visible la gráfica anterior.
+        }
+      }, 280);
+    }
+
+    /* ========================== DOCENTE ================================== */
+    function teacherRead() {
+      return {
+        title: $('teacherTitle').value.trim(),
+        level: $('teacherLevel').value.trim(),
+        duration: $('teacherDuration').value.trim(),
+        delivery: $('teacherDelivery').value,
+        objective: $('teacherObjective').value.trim(),
+        question: $('teacherQuestion').value.trim(),
+        evidence: $('teacherEvidence').value.trim()
+      };
+    }
+
+    function teacherScriptFrom(data) {
+      const deliveryLine = data.delivery === 'Oral'
+        ? 'La evidencia principal se comunicará oralmente, con apoyo de representaciones visuales.'
+        : data.delivery === 'Escrita'
+          ? 'La evidencia principal será un texto argumentado con ecuaciones y gráficas.'
+          : 'La evidencia combinará una explicación escrita breve y una defensa oral.';
+      return [
+        `MATHEMA · GUION PARA ESTUDIANTES`,
+        `\n${data.title}`,
+        `Nivel: ${data.level} · Duración: ${data.duration}`,
+        `\nOBJETIVO\n${data.objective}`,
+        `\nPREGUNTA RETADORA\n${data.question}`,
+        `\n1. OBSERVAR\nExplora la gráfica o representación inicial. Describe dos patrones que puedas justificar con evidencia visual o numérica. Evita explicar todavía por qué ocurren: primero registra lo que observas.`,
+        `\n2. CALCULAR\nSelecciona los procedimientos matemáticos necesarios. Realiza los cálculos y compáralos con la representación gráfica. Señala cualquier resultado que no coincida con tu anticipación.`,
+        `\n3. EXPLICAR\nConstruye una explicación que conecte lenguaje cotidiano, símbolos, tabla y gráfica. Responde con argumentos a la pregunta retadora y escribe qué evidencia respalda cada afirmación.`,
+        `\n4. TRANSFERIR\nCambia una condición del problema, construye un nuevo ejemplo y comprueba si la idea matemática se mantiene. Explica qué cambia y qué permanece.`,
+        `\nEVIDENCIA DE APRENDIZAJE\n${data.evidence}`,
+        `\nFORMA DE ENTREGA\n${deliveryLine}`,
+        `\nNOTA DE INCLUSIÓN\nPuedes realizar la experiencia en 2D si no tienes cámara o visor. Una explicación oral puede acompañar o reemplazar la producción escrita cuando el propósito de evaluación lo permita.`
+      ].join('\n');
+    }
+
+    function generateTeacher() {
+      const data=teacherRead();
+      $('teacherScript').textContent = teacherScriptFrom(data);
+      $('teacherSaveState').textContent = 'Secuencia generada';
+    }
+
+    function getTeacherProject() {
+      const data=teacherRead();
+      return { app:'Mathema', version:1, savedAt:new Date().toISOString(), data, script:teacherScriptFrom(data) };
+    }
+
+    function saveTeacher() {
+      try {
+        const project=getTeacherProject();
+        localStorage.setItem(APP.storageKey, JSON.stringify(project));
+        $('teacherScript').textContent=project.script;
+        $('teacherSaveState').textContent = `Guardado ${new Date(project.savedAt).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}`;
+        showToast('Proyecto guardado', 'La secuencia está disponible en este navegador.', 'ok');
+      } catch(error) { showToast('No se pudo guardar', error.message || String(error), 'warn'); }
+    }
+
+    function loadTeacher() {
+      try {
+        const raw=localStorage.getItem(APP.storageKey);
+        if(!raw){
+          fillTeacher(APP.defaultTeacher);
+          generateTeacher();
+          return;
+        }
+        const project=JSON.parse(raw);
+        fillTeacher(Object.assign({},APP.defaultTeacher,project.data||{}));
+        $('teacherScript').textContent=project.script || teacherScriptFrom(project.data||APP.defaultTeacher);
+        $('teacherSaveState').textContent='Proyecto restaurado';
+      } catch(error) {
+        fillTeacher(APP.defaultTeacher); generateTeacher();
+        showToast('No se pudo restaurar', 'Se cargó la plantilla base.', 'warn');
+      }
+    }
+
+    function fillTeacher(data) {
+      $('teacherTitle').value=data.title;
+      $('teacherLevel').value=data.level;
+      $('teacherDuration').value=data.duration;
+      $('teacherDelivery').value=data.delivery || 'Mixta';
+      $('teacherObjective').value=data.objective;
+      $('teacherQuestion').value=data.question;
+      $('teacherEvidence').value=data.evidence;
+    }
+
+    async function copyText(text) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const area=document.createElement('textarea');
+          area.value=text; area.style.position='fixed'; area.style.left='-9999px'; document.body.appendChild(area); area.focus(); area.select();
+          const ok=document.execCommand('copy'); area.remove();
+          if(!ok) throw new Error('El navegador no permitió copiar al portapapeles.');
+        }
+        showToast('Copiado', 'El guion se copió al portapapeles.', 'ok');
+      } catch(error) { showToast('No se pudo copiar', error.message || String(error), 'warn'); }
+    }
+
+    function exportTeacher() {
+      const project=getTeacherProject();
+      const blob=new Blob([JSON.stringify(project,null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const link=document.createElement('a'); link.href=url; link.download='mathema-secuencia.json'; link.click();
+      URL.revokeObjectURL(url);
+      showToast('JSON exportado', 'Se descargó el proyecto docente.', 'ok');
+    }
+
+    function importTeacher() { $('teacherFile').click(); }
+
+    function processTeacherFile(file) {
+      if(!file) return;
+      const reader=new FileReader();
+      reader.onload=()=>{
+        try{
+          const project=JSON.parse(reader.result);
+          if(!project || typeof project!=='object' || !project.data) throw new Error('El archivo no contiene un proyecto Mathema válido.');
+          fillTeacher(Object.assign({},APP.defaultTeacher,project.data));
+          $('teacherScript').textContent=project.script || teacherScriptFrom(teacherRead());
+          $('teacherSaveState').textContent='Importado desde JSON';
+          showToast('Proyecto importado', 'Los campos docentes fueron restaurados.', 'ok');
+        }catch(error){ showToast('JSON inválido', error.message || String(error), 'warn'); }
+      };
+      reader.onerror=()=>showToast('Error de lectura','No se pudo leer el archivo seleccionado.','warn');
+      reader.readAsText(file);
+    }
+
+    function resetTeacher() {
+      fillTeacher(APP.defaultTeacher);
+      generateTeacher();
+      $('teacherSaveState').textContent='Plantilla reiniciada';
+    }
+
+    /* =========================== ACCESIBILIDAD ============================ */
+    function narrateCurrentSection() {
+      const section=$(state.section === 'home' ? 'section-home' : `section-${state.section}`);
+      if(!section) return;
+      const heading=section.querySelector('h1,h2')?.textContent || 'Mathema';
+      const intro=section.querySelector('.section-head p, .hero p')?.textContent || '';
+      speak(`${heading}. ${intro}`);
+    }
+
+    function toggleContrast() {
+      const enabled=document.body.classList.toggle('high-contrast');
+      $('contrastToggle').setAttribute('aria-pressed',String(enabled));
+      $('contrastToggle').textContent=enabled?'◑ Contraste normal':'◐ Alto contraste';
+      localStorage.setItem('mathemaHighContrast', enabled?'1':'0');
+    }
+
+    function restoreContrast() {
+      const enabled=localStorage.getItem('mathemaHighContrast')==='1';
+      if(enabled){ document.body.classList.add('high-contrast'); $('contrastToggle').setAttribute('aria-pressed','true'); $('contrastToggle').textContent='◑ Contraste normal'; }
+    }
+
+    /* ============================== INIT ================================== */
+    function updateLimitFieldVisibility(){
+      $('limitPointField').style.display=$('limitMode').value==='finite'?'block':'none';
+    }
+
+    function bindEvents(){
+      $$('.nav button').forEach((btn)=>btn.addEventListener('click',()=>navigate(btn.dataset.section)));
+      $$('[data-section-jump]').forEach((btn)=>btn.addEventListener('click',()=>navigate(btn.dataset.sectionJump)));
+      $('openSidebar').addEventListener('click',()=> $('sidebar').classList.toggle('open'));
+      $('contrastToggle').addEventListener('click',toggleContrast);
+      $('speechCurrent').addEventListener('click',narrateCurrentSection);
+
+
+      $('computeLimit').addEventListener('click',runLimit);
+      $('limitExpr').addEventListener('input', queueLimitPreview);
+      $('limitExpr').addEventListener('keydown',(event)=>{ if(event.key==='Enter'){ event.preventDefault(); runLimit(); } });
+      $('limitPoint').addEventListener('input', queueLimitPreview);
+      $('limitWindow').addEventListener('input', queueLimitPreview);
+      $('limitMode').addEventListener('change',updateLimitFieldVisibility);
+      $('limitExample').addEventListener('click',()=>{ $('limitExpr').value='(x^2-1)/(x-1)'; $('limitMode').value='finite'; $('limitPoint').value='1'; $('limitWindow').value='2'; updateLimitFieldVisibility(); runLimit(); });
+
+      $('computeDerivative').addEventListener('click',runDerivative);
+      $('derivativeExpr').addEventListener('input', queueDerivativePreview);
+      $('derivativeExpr').addEventListener('keydown',(event)=>{ if(event.key==='Enter'){ event.preventDefault(); runDerivative(); } });
+      $('derivativePoint').addEventListener('input', queueDerivativePreview);
+      $('derivativeWindow').addEventListener('input', queueDerivativePreview);
+      $('derivativeExample').addEventListener('click',()=>{ $('derivativeExpr').value='sin(x)*exp(-x/4)'; $('derivativePoint').value='1'; $('derivativeWindow').value='5'; runDerivative(); });
+      $('speakDerivative').addEventListener('click',()=>{ if(state.lastDerivative){ const r=state.lastDerivative; speak(`En x igual a ${fmt(r.x0)}, la función vale ${fmt(r.y0)} y su derivada vale ${fmt(r.slope)}. La recta tangente es y igual a ${fmt(r.y0)} más ${fmt(r.slope)} por x menos ${fmt(r.x0)}.`); } else { speak('Calcula primero una derivada para narrar la interpretación.'); } });
+
+      $('generateTeacher').addEventListener('click',generateTeacher);
+      $('saveTeacher').addEventListener('click',saveTeacher);
+      $('copyTeacher').addEventListener('click',()=>copyText($('teacherScript').textContent || teacherScriptFrom(teacherRead())));
+      $('exportTeacher').addEventListener('click',exportTeacher);
+      $('importTeacher').addEventListener('click',importTeacher);
+      $('resetTeacher').addEventListener('click',resetTeacher);
+      $('teacherFile').addEventListener('change',(event)=>processTeacherFile(event.target.files[0]));
+      $('speakTeacher').addEventListener('click',()=>speak($('teacherScript').textContent || teacherScriptFrom(teacherRead())));
+
+
+      document.addEventListener('keydown',(event)=>{
+        if(event.key==='Escape' && $('sidebar').classList.contains('open')) $('sidebar').classList.remove('open');
+      });
+    }
+
+    async function boot(){
+      await ensureLibraries();
+      restoreContrast();
+      bindEvents();
+      updateLimitFieldVisibility();
+      fillTeacher(APP.defaultTeacher);
+      loadTeacher();
+
+      setEngineStatus('mathDot','mathState',Boolean(window.math),'math.js ' + (window.math ? 'OK' : 'no cargado'));
+      setEngineStatus('plotlyDot','plotlyState',Boolean(window.Plotly),'Plotly ' + (window.Plotly ? 'OK' : 'no cargado'));
+      runLimit();
+      runDerivative();
+
+      window.addEventListener('resize',()=>{
+        ['limitPlot','derivativePlot'].forEach((id)=>{
+          const el=$(id);
+          if(el && window.Plotly && el.data) Plotly.Plots.resize(el);
+        });
+      });
+
+      showToast('Mathema listo', 'Los laboratorios de límites, derivadas y modo docente ya están operativos.', 'ok');
+    }
+
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true});
+    else boot();
+  </script>
+</body>
+</html>
